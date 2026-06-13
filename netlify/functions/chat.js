@@ -23,7 +23,7 @@ exports.handler = async function(event) {
     });
 
     const apiKey = process.env.GEMINI_API_KEY;
-    const path = '/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
+    const path = '/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
 
     const reply = await new Promise(function(resolve, reject) {
       const req = https.request({
