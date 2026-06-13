@@ -1,46 +1,53 @@
 const https = require('https');
 
-exports.handler = async function (event) {
+exports.handler = async function(event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
   try {
-    const { system, messages } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const messages = body.messages;
+    const system = body.system;
 
-    const geminiMessages = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
+    const geminiMessages = messages.map(function(m) {
+      return {
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      };
+    });
 
     const postData = JSON.stringify({
       system_instruction: { parts: [{ text: system }] },
       contents: geminiMessages
     });
 
-    const reply = await new Promise((resolve, reject) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    const path = '/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
+
+    const reply = await new Promise(function(resolve, reject) {
       const req = https.request({
         hostname: 'generativelanguage.googleapis.com',
-        path: /v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY},
+        path: path,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData)
         }
-      }, (res) => {
+      }, function(res) {
         let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
+        res.on('data', function(chunk) { data += chunk; });
+        res.on('end', function() {
           try {
             const parsed = JSON.parse(data);
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || No reply: ${data};
+            const text = parsed.candidates[0].content.parts[0].text;
             resolve(text);
           } catch(e) {
-            resolve(Parse error: ${data});
+            resolve('API Error: ' + data);
           }
         });
       });
-      req.on('error', reject);
+      req.on('error', function(e) { resolve('Request Error: ' + e.message); });
       req.write(postData);
       req.end();
     });
@@ -48,12 +55,12 @@ exports.handler = async function (event) {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply })
+      body: JSON.stringify({ reply: reply })
     };
-  } catch (err) {
+  } catch(err) {
     return {
       statusCode: 200,
-      body: JSON.stringify({ reply: Error: ${err.message} })
+      body: JSON.stringify({ reply: 'Error: ' + err.message })
     };
   }
 };
