@@ -11,19 +11,27 @@ exports.handler = async function (event) {
       parts: [{ text: m.content }]
     }));
 
-    const response = await fetch(
-      https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY},
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
-          contents: geminiMessages
-        })
-      }
-    );
+    const url = https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY};
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: system }] },
+        contents: geminiMessages
+      })
+    });
 
     const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: API Error: ${JSON.stringify(data)} })
+      };
+    }
+
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't process that.";
 
     return {
@@ -33,8 +41,8 @@ exports.handler = async function (event) {
     };
   } catch (err) {
     return {
-      statusCode: 500,
-      body: JSON.stringify({ reply: "Server error. Please try again." })
+      statusCode: 200,
+      body: JSON.stringify({ reply: Error: ${err.message} })
     };
   }
 };
