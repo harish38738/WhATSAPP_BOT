@@ -10,28 +10,22 @@ exports.handler = async function(event) {
     const messages = body.messages;
     const system = body.system;
 
-    const geminiMessages = messages.map(function(m) {
-      return {
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      };
-    });
-
     const postData = JSON.stringify({
-      system_instruction: { parts: [{ text: system }] },
-      contents: geminiMessages
+      model: 'llama-3.1-8b-instant',
+      messages: [{ role: 'system', content: system }].concat(messages),
+      max_tokens: 500
     });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    const path = '/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + apiKey;
+    const apiKey = process.env.GROQ_API_KEY;
 
     const reply = await new Promise(function(resolve, reject) {
       const req = https.request({
-        hostname: 'generativelanguage.googleapis.com',
-        path: path,
+        hostname: 'api.groq.com',
+        path: '/openai/v1/chat/completions',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey,
           'Content-Length': Buffer.byteLength(postData)
         }
       }, function(res) {
@@ -40,7 +34,7 @@ exports.handler = async function(event) {
         res.on('end', function() {
           try {
             const parsed = JSON.parse(data);
-            const text = parsed.candidates[0].content.parts[0].text;
+            const text = parsed.choices[0].message.content;
             resolve(text);
           } catch(e) {
             resolve('API Error: ' + data);
